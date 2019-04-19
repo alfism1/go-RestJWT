@@ -7,4 +7,11 @@ type User struct {
 	Username string
 	Password string
 	Email    string
+	Role     string
+}
+
+type UserCredential struct {
+	Username string
+	Email    string
+	Role     string
 }

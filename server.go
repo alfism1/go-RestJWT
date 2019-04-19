@@ -8,9 +8,8 @@ import (
 
 	jwt "github.com/appleboy/gin-jwt"
 	"github.com/gin-gonic/gin"
-	"github.com/sampingan/RestfullJWT/config"
+	"github.com/sampingan/RestfullJWT/common"
 	"github.com/sampingan/RestfullJWT/structs"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type login struct {
@@ -18,26 +17,27 @@ type login struct {
 	Password string `form:"password" json:"password" binding:"required"`
 }
 
+// type UserInfo struct {
+// 	Username string
+// 	Email    string
+// }
+
 var identityKey = "id"
+var credential structs.UserCredential
 
 func helloHandler(c *gin.Context) {
 	claims := jwt.ExtractClaims(c)
-	user, _ := c.Get(identityKey)
-	// fmt.Println(claims)
 	c.JSON(200, gin.H{
-		"userID":   claims["id"],
-		"userName": user.(*UserInfo).Username,
+		"username": claims["id"],
+		"email":    claims["email"],
+		"role":     claims["role"],
 		"text":     "Hello World.",
 	})
 }
 
-type UserInfo struct {
-	Username string
-	Email    string
-}
-
 func main() {
-	db := config.DBInit()
+	// common.Test()
+	// db := config.DBInit()
 	// _ = &controllers.InDB{DB: db}
 
 	port := os.Getenv("PORT")
@@ -49,7 +49,6 @@ func main() {
 		port = "8000"
 	}
 
-	var usr UserInfo
 	// the jwt middleware
 	authMiddleware, err := jwt.New(&jwt.GinJWTMiddleware{
 		Realm:       "test zone",
@@ -58,18 +57,19 @@ func main() {
 		MaxRefresh:  time.Hour,
 		IdentityKey: identityKey,
 		PayloadFunc: func(data interface{}) jwt.MapClaims {
-			if v, ok := data.(*UserInfo); ok {
+			if v, ok := data.(*structs.UserCredential); ok {
 				return jwt.MapClaims{
 					identityKey: v.Username,
+					"email":     v.Email,
+					"role":      v.Role,
 				}
 			}
 			return jwt.MapClaims{}
 		},
 		IdentityHandler: func(c *gin.Context) interface{} {
 			claims := jwt.ExtractClaims(c)
-			return &UserInfo{
+			return &structs.UserCredential{
 				Username: claims["id"].(string),
-				Email:    usr.Email,
 			}
 		},
 		Authenticator: func(c *gin.Context) (interface{}, error) {
@@ -79,43 +79,33 @@ func main() {
 			}
 			username := loginVals.Username
 			password := loginVals.Password
-			// fmt.Println(password)
 
 			var (
 				user structs.User
 			)
 
-			err := db.Select("username, email, password").Where("username = ?", username).First(&user).Error
-			if err != nil {
-				return nil, jwt.ErrFailedAuthentication
-			}
-			// check password
-			if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-				// If the two passwords don't match, return a 401 status
+			auth, user := common.Login(username, password)
+
+			if !auth {
 				return nil, jwt.ErrFailedAuthentication
 			}
 
-			usr = UserInfo{
-				user.Username,
-				user.Email,
-			}
-			return &UserInfo{
-				Username: username,
+			return &structs.UserCredential{
+				Username: user.Username,
 				Email:    user.Email,
+				Role:     user.Role,
 			}, nil
 
 		},
 		LoginResponse: func(c *gin.Context, code int, message string, exp time.Time) {
-			// fmt.Println(usr)
 			c.JSON(code, gin.H{
-				"message": message,
-				"time":    exp,
-				"result":  usr,
+				"token": message,
+				"time":  exp,
+				// "result": c,
 			})
 		},
 		Authorizator: func(data interface{}, c *gin.Context) bool {
-			// fmt.Println(c.GetHeader("Authorization"))
-			if v, ok := data.(*UserInfo); ok && v.Username != "" {
+			if v, ok := data.(*structs.UserCredential); ok && v.Username != "" {
 				return true
 			}
 
@@ -159,9 +149,4 @@ func main() {
 	if err := http.ListenAndServe(":"+port, r); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func HashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
-	return string(bytes), err
 }
