@@ -2,11 +2,66 @@ package controllers
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sampingan/RestfullJWT/structs"
 	"golang.org/x/crypto/bcrypt"
 )
+
+type UserData struct {
+	ID        uint
+	Username  string
+	Email     string
+	Role      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func (idb *InDB) GetAllUser(c *gin.Context) {
+	var (
+		users  []UserData
+		result gin.H
+	)
+
+	idb.DB.Table("users").Select("id, username, email, role, created_at, updated_at").Find(&users)
+	if len(users) <= 0 {
+		result = gin.H{
+			"result": nil,
+			"count":  0,
+		}
+	} else {
+		result = gin.H{
+			"result": users,
+			"count":  len(users),
+		}
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+func (idb *InDB) GetUser(c *gin.Context) {
+	var (
+		user   UserData
+		result gin.H
+	)
+
+	id := c.Param("id")
+	err := idb.DB.Table("users").Select("id, username, email, role, created_at, updated_at").Where("id=?", id).Find(&user).Error
+	if err != nil {
+		result = gin.H{
+			"result": nil,
+			"count":  0,
+		}
+	} else {
+		result = gin.H{
+			"result": user,
+			"count":  1,
+		}
+	}
+
+	c.JSON(http.StatusOK, result)
+}
 
 // CreateUser - create new data to the database
 func (idb *InDB) CreateUser(c *gin.Context) {

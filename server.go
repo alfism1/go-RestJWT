@@ -166,10 +166,12 @@ func main() {
 	admin.Use(middleware.IsAdmin())
 	{
 		admin.GET("/info", adminInfoHandler)
+		admin.GET("/users", inDB.GetAllUser)
 	}
 
 	// all can access
 	r.GET("/info", authMiddleware.MiddlewareFunc(), freeInfoHandler)
+	r.GET("/user/:id", authMiddleware.MiddlewareFunc(), inDB.GetUser)
 
 	// only pro and admin
 	pro := r.Group("/pro")
