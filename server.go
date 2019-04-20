@@ -9,6 +9,9 @@ import (
 	jwt "github.com/appleboy/gin-jwt"
 	"github.com/gin-gonic/gin"
 	"github.com/sampingan/RestfullJWT/common"
+	"github.com/sampingan/RestfullJWT/config"
+	"github.com/sampingan/RestfullJWT/controllers"
+	"github.com/sampingan/RestfullJWT/middleware"
 	"github.com/sampingan/RestfullJWT/structs"
 )
 
@@ -25,25 +28,42 @@ type login struct {
 var identityKey = "id"
 var credential structs.UserCredential
 
-func helloHandler(c *gin.Context) {
+func adminInfoHandler(c *gin.Context) {
 	claims := jwt.ExtractClaims(c)
 	c.JSON(200, gin.H{
 		"username": claims["id"],
 		"email":    claims["email"],
 		"role":     claims["role"],
-		"text":     "Hello World.",
+		"text":     "This endpoint only accessed by admin",
+	})
+}
+
+func freeInfoHandler(c *gin.Context) {
+	claims := jwt.ExtractClaims(c)
+	c.JSON(200, gin.H{
+		"username": claims["id"],
+		"email":    claims["email"],
+		"role":     claims["role"],
+		"text":     "Everyone can access me",
+	})
+}
+
+func proInfoHandler(c *gin.Context) {
+	claims := jwt.ExtractClaims(c)
+	c.JSON(200, gin.H{
+		"username": claims["id"],
+		"email":    claims["email"],
+		"role":     claims["role"],
+		"text":     "I'm a pro user",
 	})
 }
 
 func main() {
-	// common.Test()
-	// db := config.DBInit()
-	// _ = &controllers.InDB{DB: db}
+	db := config.DBInit()
+	inDB := &controllers.InDB{DB: db}
 
 	port := os.Getenv("PORT")
 	r := gin.Default()
-	// r.Use(gin.Logger())
-	r.Use(gin.Recovery())
 
 	if port == "" {
 		port = "8000"
@@ -131,6 +151,7 @@ func main() {
 	}
 
 	r.POST("/login", authMiddleware.LoginHandler)
+	r.POST("/register", inDB.CreateUser)
 
 	r.NoRoute(authMiddleware.MiddlewareFunc(), func(c *gin.Context) {
 		claims := jwt.ExtractClaims(c)
@@ -138,12 +159,24 @@ func main() {
 		c.JSON(404, gin.H{"code": "PAGE_NOT_FOUND", "message": "Page not found"})
 	})
 
-	auth := r.Group("/auth")
+	admin := r.Group("/admin")
 	// Refresh time can be longer than token timeout
-	auth.GET("/refresh_token", authMiddleware.RefreshHandler)
-	auth.Use(authMiddleware.MiddlewareFunc())
+	// admin.GET("/refresh_token", authMiddleware.RefreshHandler)
+	admin.Use(authMiddleware.MiddlewareFunc())
+	admin.Use(middleware.IsAdmin())
 	{
-		auth.GET("/hello", helloHandler)
+		admin.GET("/info", adminInfoHandler)
+	}
+
+	// all can access
+	r.GET("/info", authMiddleware.MiddlewareFunc(), freeInfoHandler)
+
+	// only pro and admin
+	pro := r.Group("/pro")
+	pro.Use(authMiddleware.MiddlewareFunc())
+	pro.Use(middleware.IsPro())
+	{
+		pro.GET("/info", proInfoHandler)
 	}
 
 	if err := http.ListenAndServe(":"+port, r); err != nil {

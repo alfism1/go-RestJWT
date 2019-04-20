@@ -25,23 +25,3 @@ func Login(username string, password string) (bool, structs.User) {
 
 	return true, user
 }
-
-// import (
-
-// 	"github.com/sampingan/RestfullJWT/config"
-// 	"github.com/sampingan/RestfullJWT/structs"
-// )
-
-// func login(username string, password string, *usr User) bool {
-// 	err := db.Select("username, email, password").Where("username = ?", username).First(&user).Error
-// 	if err != nil {
-// 		return false
-// 	}
-
-// 	return true
-// }
-
-// func HashPassword(password string) (string, error) {
-// 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
-// 	return string(bytes), err
-// }
