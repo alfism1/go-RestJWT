@@ -167,6 +167,8 @@ func main() {
 	{
 		admin.GET("/info", adminInfoHandler)
 		admin.GET("/users", inDB.GetAllUser)
+		admin.PUT("/user/:id", inDB.UpdateUser)
+		admin.DELETE("/user/:id", inDB.DeleteUser)
 	}
 
 	// all can access

@@ -1,8 +1,6 @@
 package middleware
 
 import (
-	"fmt"
-
 	jwt "github.com/appleboy/gin-jwt"
 	"github.com/gin-gonic/gin"
 )
@@ -10,7 +8,6 @@ import (
 func IsAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		claims := jwt.ExtractClaims(c)
-		fmt.Println(claims)
 
 		if claims["role"] != "admin" {
 			c.JSON(401, gin.H{
@@ -25,7 +22,6 @@ func IsAdmin() gin.HandlerFunc {
 func IsPro() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		claims := jwt.ExtractClaims(c)
-		fmt.Println(claims)
 
 		if claims["role"] != "pro" {
 			c.JSON(401, gin.H{

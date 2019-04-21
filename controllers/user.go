@@ -24,7 +24,7 @@ func (idb *InDB) GetAllUser(c *gin.Context) {
 		result gin.H
 	)
 
-	idb.DB.Table("users").Select("id, username, email, role, created_at, updated_at").Find(&users)
+	idb.DB.Table("users").Select("id, username, email, role, created_at, updated_at").Where("deleted_at IS NULL").Find(&users)
 	if len(users) <= 0 {
 		result = gin.H{
 			"result": nil,
@@ -81,6 +81,77 @@ func (idb *InDB) CreateUser(c *gin.Context) {
 	result = gin.H{
 		"result": user,
 	}
+	c.JSON(http.StatusOK, result)
+}
+
+// UpdateUser - delete user by {id}
+func (idb *InDB) UpdateUser(c *gin.Context) {
+	var (
+		user   structs.User
+		result gin.H
+	)
+	id := c.Param("id")
+
+	err := idb.DB.First(&user, id).Error
+	if err != nil {
+		result = gin.H{
+			"result": "data not found",
+		}
+	} else {
+		username := c.PostForm("username")
+		password := c.PostForm("password")
+		email := c.PostForm("email")
+		role := c.PostForm("role")
+
+		user.Username = username
+		user.Email = email
+		user.Role = role
+
+		// check is password changed
+		if password != "" {
+			user.Password, _ = hashPassword(password)
+		}
+
+		err = idb.DB.Save(&user).Error
+		if err != nil {
+			result = gin.H{
+				"result": "update failed",
+			}
+		} else {
+			result = gin.H{
+				"result": "Data updated successfully",
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+// DeleteUser - delete user by {id}
+func (idb *InDB) DeleteUser(c *gin.Context) {
+	var (
+		user   structs.User
+		result gin.H
+	)
+	id := c.Param("id")
+	err := idb.DB.First(&user, id).Error
+	if err != nil {
+		result = gin.H{
+			"result": "data not found",
+		}
+	} else {
+		err = idb.DB.Unscoped().Delete(&user).Error
+		if err != nil {
+			result = gin.H{
+				"result": "delete failed",
+			}
+		} else {
+			result = gin.H{
+				"result": "Data deleted successfully",
+			}
+		}
+	}
+
 	c.JSON(http.StatusOK, result)
 }
 
